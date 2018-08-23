@@ -1,12 +1,12 @@
 # Purpose        : Fit/predict distribution of soil types (memberships);
 # Maintainer     : Tomislav Hengl (tom.hengl@wur.nl)
-# Contributions  : Bas Kempen (bas.kempen@wur.nl); 
+# Contributions  : Bas Kempen (bas.kempen@wur.nl); Dainius Masiliūnas (dainius.masiliunas@wur.nl)
 # Dev Status     : Pre-Alpha
 # Note           : if the regression model is difficult to fit, it might lead to artifacts;
 
 
 # Fit a supervised fuzzy kmeans model and predict memberships:
-setMethod("spfkm", signature(formulaString = "formula", observations = "SpatialPointsDataFrame", covariates = "SpatialPixelsDataFrame"), function(formulaString, observations, covariates, class.c = NULL, class.sd = NULL, fuzzy.e = 1.2){
+setMethod("spfkm", signature(formulaString = "formula"), function(formulaString, observations, covariates, class.c = NULL, class.sd = NULL, fuzzy.e = 1.2){
   
   ## generate formula if missing:
   if(missing(formulaString)) {  
@@ -17,9 +17,28 @@ setMethod("spfkm", signature(formulaString = "formula", observations = "SpatialP
       stop("'formulaString' object of class 'formula' required")
   }
   
+  ## get regular data.frames from the input
+  if (class(observations) == "SpatialPointsDataFrame")
+  {
+    obs.df = observations@data
+  } else if (is.data.frame(observations)) {
+    obs.df = observations
+  } else {
+    stop("'observations' must be a SpatialPointsDataFrame or a regular data.frame")
+  }
+  
+  if (class(covariates) == "SpatialPixelsDataFrame")
+  {
+    cov.df = covariates@data
+  } else if (is.data.frame(covariates)) {
+    cov.df = covariates
+  } else {
+    stop("'covariates' must be a SpatialPixelsDataFrame or a regular data.frame")
+  }
+  
   ## selected variables:
   tv = all.vars(formulaString)[1]
-  sel = names(covariates) %in% all.vars(formulaString)[-1]
+  sel = names(cov.df) %in% all.vars(formulaString)[-1]
   if(all(sel==FALSE)|length(sel)==0){
       stop("None of the covariates in the 'formulaString' matches the column names in the 'covariates' object")
   }
@@ -46,10 +65,10 @@ setMethod("spfkm", signature(formulaString = "formula", observations = "SpatialP
   dsf <- NULL
   ## derive distances in feature space:
   for(c in unlist(cl)){
-      dsf[[c]] <- data.frame(lapply(names(covariates)[sel], FUN=function(x){rep(NA, length(covariates@data[,1]))}))
-      names(dsf[[c]]) <- names(covariates)[sel]
-      for(j in names(covariates)[sel]){
-         dsf[[c]][,j] <- ((covariates@data[,j]-class.c[c,j])/class.sd[c,j])^2
+      dsf[[c]] <- data.frame(lapply(names(cov.df)[sel], FUN=function(x){rep(NA, length(cov.df[,1]))}))
+      names(dsf[[c]]) <- names(cov.df)[sel]
+      for(j in names(cov.df)[sel]){
+         dsf[[c]][,j] <- ((cov.df[,j]-class.c[c,j])/class.sd[c,j])^2
       }
   }
   ## sum up distances per class:
@@ -60,29 +79,36 @@ setMethod("spfkm", signature(formulaString = "formula", observations = "SpatialP
   ## total sum:
   tt <- rowSums(ds^(-2/(fuzzy.e-1)), na.rm=TRUE, dims=1)
   ## derive the fuzzy membership:
-  mm <- covariates[1]
+  mm <- cov.df[1]
   for(c in unlist(cl)){
-    mm@data[,c] <- (ds[,c]^(-2/(fuzzy.e-1))/tt)
+    mm[,c] <- (ds[,c]^(-2/(fuzzy.e-1))/tt)
   }
-  mm@data[,names(covariates)[1]] <- NULL
+  mm[,names(cov.df)[1]] <- NULL
   
   ## Derive the dominant class:
-  maxm <- sapply(data.frame(t(as.matrix(mm@data))), FUN=function(x){max(x, na.rm=TRUE)})
+  maxm <- sapply(data.frame(t(as.matrix(mm))), FUN=function(x){max(x, na.rm=TRUE)})
   ## class having the highest membership
   cout <- NULL
   for(c in unlist(cl)){
-       cout[which(mm@data[,c] == maxm)] <- c
+       cout[which(mm[,c] == maxm)] <- c
   }
   cout <- as.factor(cout)
+  browser()
   
-  ## construct a map:
-  pm <- covariates[1]
-  pm@data[,tv] <- cout
-  pm@data[,names(covariates)[1]] <- NULL
-
-  ## overlay observations and covariates:
-  ov <- over(observations, pm)
-  sel.c <- !is.na(ov[,tv]) & !is.na(observations@data[,tv])
+  ## construct a map: overlay observations and covariates:
+  if (class(observations) == "SpatialPointsDataFrame")
+  {
+    pm <- covariates[1]
+    pm@data[,tv] <- cout
+    pm@data[,names(covariates)[1]] <- NULL
+    
+    ov <- over(observations, pm)
+  } else {
+    pm <- data.frame(cout)
+    names(pm) <- tv
+    ov <- cbind(obs.df, cov.df[complete.cases(cov.df),])
+  }
+  sel.c <- !is.na(ov[,tv]) & !is.na(obs.df[,tv])
 
   ## kappa statistics:
   if(requireNamespace("mda", quietly = TRUE)&requireNamespace("psych", quietly = TRUE)){

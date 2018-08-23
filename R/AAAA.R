@@ -1,6 +1,6 @@
 # Purpose        : Initial settings;
 # Maintainer     : Tomislav Hengl (tom.hengl@wur.nl)
-# Contributions  : Dylan Beaudette (dylan.beaudette@gmail.com);
+# Contributions  : Dylan Beaudette (dylan.beaudette@gmail.com); Dainius Masiliūnas (dainius.masiliunas@wur.nl)
 # Dev Status     : Pre-Alpha
 # Note           : Aqp classes described here -> [http://r-forge.r-project.org/projects/aqp/]; for more info see [http://cran.r-project.org/doc/manuals/R-exts.html];
 
@@ -260,19 +260,33 @@ setClass("SpatialComponents", representation (predicted = "SpatialPixelsDataFram
 })
 
 ## SpatialMemberships class
-setClass("SpatialMemberships", representation (predicted = "SpatialPixelsDataFrame", model = "list", mu = "SpatialPixelsDataFrame", class.c = "matrix", class.sd = "matrix", confusion = "ANY"), validity = function(object) {
+setClass("SpatialMemberships", representation (predicted = "ANY", model = "list", mu = "ANY", class.c = "matrix", class.sd = "matrix", confusion = "ANY"), validity = function(object) {
+   if (class(object@predicted) == "SpatialPixelsDataFrame")
+   {
+      pred.factor = object@predicted@data[,1]
+   } else {
+      pred.factor = object@predicted[,1]
+   }
+   
+   if (class(object@mu) == "SpatialPixelsDataFrame")
+   {
+      mu.df = object@mu@data
+   } else {
+      mu.df = object@mu
+   }
+   
    ## check if column names match:
    #if(!any(names(object@mu) %in% levels(object@predicted@data[,1])))
    #   return("Class names in the 'predicted' and 'mu' slots do not match")
    ## check if the row names in the class.sd, class.c match:
-   if(!all(row.names(object@class.c) %in% levels(object@predicted@data[,1])))
+   if(!all(row.names(object@class.c) %in% levels(pred.factor)))
       return("Row names in the 'class.c' slot and 'predicted' slots do not match")
-   if(!all(row.names(object@class.sd) %in% levels(object@predicted@data[,1])))
+   if(!all(row.names(object@class.sd) %in% levels(pred.factor)))
       return("Row names in the 'class.sd' slot and 'predicted' slots do not match")
-   if(ncol(object@mu@data)<2)
+   if(ncol(mu.df)<2)
       return("A minimum of two membership maps required")
    # check if all mu's sum to 1 (plus minus 1%):
-   if(!all(rowSums(object@mu@data, na.rm=TRUE)>.99&rowSums(object@mu@data, na.rm=TRUE)<1.01))
+   if(!all(rowSums(mu.df, na.rm=TRUE)>.99&rowSums(mu.df, na.rm=TRUE)<1.01))
       return("Some rows in the 'mu' slot do not sum up to 1")
    ## check if the confusion matrix has kappa > 0
 #   if(length(object@confusion)==0|attr(object@confusion, "error")==0)
