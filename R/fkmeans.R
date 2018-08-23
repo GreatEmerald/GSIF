@@ -93,7 +93,6 @@ setMethod("spfkm", signature(formulaString = "formula"), function(formulaString,
        cout[which(mm[,c] == maxm)] <- c
   }
   cout <- as.factor(cout)
-  browser()
   
   ## construct a map: overlay observations and covariates:
   if (class(observations) == "SpatialPointsDataFrame")
@@ -112,7 +111,7 @@ setMethod("spfkm", signature(formulaString = "formula"), function(formulaString,
 
   ## kappa statistics:
   if(requireNamespace("mda", quietly = TRUE)&requireNamespace("psych", quietly = TRUE)){
-    cf <- mda::confusion(ov[sel.c,tv], as.character(observations@data[sel.c,tv]))
+    cf <- mda::confusion(ov[sel.c,tv], as.character(obs.df[sel.c,tv]))
     ## remove missing classes:
     a <- attr(cf, "dimnames")[[1]] %in% attr(cf, "dimnames")[[2]] 
     b <- attr(cf, "dimnames")[[2]] %in% attr(cf, "dimnames")[[1]]
