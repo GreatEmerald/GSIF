@@ -49,7 +49,7 @@ setMethod("spmultinom", signature(formulaString = "formula"), function(formulaSt
     ov <- over(observations, covariates[sel])
     ov <- cbind(obs.df[tv], ov)
   } else {
-    ov <- cbind(obs.df, cov.df[complete.cases(cov.df),])
+    ov <- cbind(obs.df[complete.cases(cov.df),], cov.df[complete.cases(cov.df),])
   }
     
   message("Fitting a multinomial logistic regression model...")
