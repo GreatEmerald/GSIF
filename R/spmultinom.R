@@ -50,6 +50,7 @@ setMethod("spmultinom", signature(formulaString = "formula"), function(formulaSt
     ov <- cbind(obs.df[tv], ov)
   } else {
     ov <- cbind(obs.df[complete.cases(cov.df),], cov.df[complete.cases(cov.df),])
+    names(ov)[1] = names(obs.df)[1]
   }
     
   message("Fitting a multinomial logistic regression model...")
